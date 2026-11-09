@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Grizzly Gallery</string>
+    <string name="title_activity_main">Grizzly Gallery</string>
+    <string name="package_name">com.reaper357.grizzlygallery</string>
+    <string name="custom_url_scheme">com.reaper357.grizzlygallery</string>
+</resources>

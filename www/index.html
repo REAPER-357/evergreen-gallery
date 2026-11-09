@@ -1,0 +1,1300 @@
+<!DOCTYPE html>
+<html lang="en" class="dark" data-theme="black">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+    <title>Evergreen Gallery</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#000000">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="apple-touch-icon" href="icon.png">
+    <link rel="stylesheet" href="tailwind.css">
+        <link rel="stylesheet" href="fa/css/all.min.css">
+    <style>
+        :root {
+            --accent-color: #10b981;
+            --page-bg: #000000; --page-fg: #f1f5f9; --panel-bg: #18181b;
+            --bar-bg: rgba(0,0,0,.95); --nav-bg: #09090b; --bar-border: #27272a;
+        }
+        [data-theme="dark"] { --page-bg:#0f172a; --panel-bg:#1e293b; --bar-bg:rgba(15,23,42,.95); --nav-bg:#020617; --bar-border:#1e293b; }
+        [data-theme="light"] { --page-bg:#f1f5f9; --page-fg:#1e293b; --panel-bg:#fff; --bar-bg:rgba(255,255,255,.95); --nav-bg:#e2e8f0; --bar-border:#cbd5e1; }
+        body { background: var(--page-bg); color: var(--page-fg); padding-top: env(safe-area-inset-top); }
+        .panel-bg { background: var(--panel-bg); }
+        .app-header { background: var(--bar-bg); border-color: var(--bar-border); }
+        .app-nav { background: var(--nav-bg); border-color: var(--bar-border); }
+        .tab-btn.active { border-color: var(--accent-color); color: var(--accent-color); }
+        .accent-text { color: var(--accent-color) !important; }
+        .accent-bg { background: var(--accent-color) !important; color:#fff; }
+        .accent-border { border-color: var(--accent-color) !important; }
+        input[type=range], input[type=checkbox] { accent-color: var(--accent-color); }
+        .no-scrollbar::-webkit-scrollbar { display:none; } .no-scrollbar { scrollbar-width:none; }
+        .thumb { position:relative; aspect-ratio:1/1; background:#27272a; overflow:hidden; border-radius:10px; touch-action:pan-y; }
+        .thumb img { width:100%; height:100%; object-fit:cover; display:block; pointer-events:none; -webkit-user-drag:none; }
+        .thumb.sel { outline:3px solid var(--accent-color); outline-offset:-3px; }
+        .thumb .chk { position:absolute; top:5px; left:5px; width:22px; height:22px; border-radius:50%; background:rgba(0,0,0,.55); border:2px solid #fff; display:none; align-items:center; justify-content:center; color:#fff; font-size:11px; }
+        .selecting .thumb .chk { display:flex; } .thumb.sel .chk { background:var(--accent-color); }
+        .thumb.sel img { transform:scale(.88); border-radius:8px; }
+        .dense .thumb { border-radius:3px; } .dense .chk { width:14px; height:14px; font-size:8px; top:2px; left:2px; border-width:1px; }
+        .month-head { grid-column:1/-1; font-size:11px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:#a1a1aa; padding:2px 2px 0; }
+        .month-head + .thumb { }
+        .vid-badge { position:absolute; bottom:4px; right:4px; font-size:10px; background:rgba(0,0,0,.6); color:#fff; padding:1px 5px; border-radius:6px; }
+        body.noselect-drag { user-select:none; -webkit-user-select:none; touch-action:none; }
+        #viewer { touch-action:none; }
+        #viewerImg { position:absolute; left:0; top:0; flex:none; display:block; transform-origin:0 0; will-change:transform; max-width:none !important; max-height:none !important; user-select:none; -webkit-user-drag:none; }
+        [data-theme="light"] .bg-black, [data-theme="light"] .bg-black\/50 { background:#f1f5f9; }
+        [data-theme="light"] .bg-zinc-800 { background:#e2e8f0; } [data-theme="light"] .bg-zinc-900 { background:#f8fafc; }
+        [data-theme="light"] .border-zinc-800, [data-theme="light"] .border-zinc-700 { border-color:#cbd5e1; }
+        [data-theme="light"] .text-white:not(.accent-bg):not(.bg-red-600), [data-theme="light"] .text-zinc-100, [data-theme="light"] .text-zinc-200, [data-theme="light"] .text-zinc-300 { color:#1e293b; }
+        [data-theme="light"] .text-zinc-400, [data-theme="light"] .text-zinc-500 { color:#64748b; }
+        .pin-dot { width:14px; height:14px; border-radius:50%; border:2px solid #52525b; } .pin-dot.on { background:var(--accent-color); border-color:var(--accent-color); }
+        .pin-key { height:56px; border-radius:16px; background:#27272a; color:#fff; font-size:20px; font-weight:700; }
+        .pin-key:active { background:var(--accent-color); }
+        .vault-mode { --accent-color:#a855f7; }
+    </style>
+</head>
+<body id="appBody" class="min-h-screen flex flex-col font-sans select-none pb-28">
+
+<!-- HEADER -->
+<header id="appHeader" class="app-header sticky top-0 z-30 backdrop-blur-md border-b px-4 py-3 flex items-center justify-between">
+    <div class="flex items-center space-x-3">
+        <button id="logoBtn" aria-label="Evergreen Gallery logo" class="w-9 h-9 rounded-full border border-zinc-700 shadow-sm flex items-center justify-center accent-bg text-lg"><i class="fa-solid fa-paw"></i></button>
+        <div>
+            <h1 id="appTitle" class="text-base font-bold tracking-tight leading-none accent-text">EVERGREEN GALLERY</h1>
+            <p id="appSub" class="text-[10px] text-zinc-400 font-medium">Photo Gallery</p>
+        </div>
+    </div>
+    <div class="flex items-center space-x-1">
+        <button id="btnRefresh" aria-label="Rescan" title="Rescan folders" class="p-2.5 rounded-xl text-zinc-300 hover:bg-zinc-800/50"><i class="fa-solid fa-rotate text-lg"></i></button>
+        <button id="btnSettings" aria-label="Settings" class="p-2.5 rounded-xl text-zinc-300 hover:bg-zinc-800/50"><i class="fa-solid fa-gear text-lg"></i></button>
+    </div>
+</header>
+
+<!-- SEARCH + CONTROLS -->
+<div class="app-nav border-b px-4 py-2.5 space-y-2">
+    <div class="max-w-6xl mx-auto flex items-center gap-2">
+        <div class="relative flex-1">
+            <i class="fa-solid fa-magnifying-glass absolute left-3 top-1/2 -translate-y-1/2 text-zinc-500 text-xs"></i>
+            <input id="searchInput" type="text" aria-label="Search" placeholder="Search photos and albums..." class="w-full pl-9 pr-3 py-2 bg-black border border-zinc-800 rounded-xl text-xs text-white focus:outline-none focus:border-emerald-500">
+        </div>
+        <button id="btnSort" aria-label="Sort" class="h-9 px-3 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-semibold flex items-center gap-1.5 whitespace-nowrap"><i class="fa-solid fa-arrow-down-wide-short"></i><span id="sortLabel">Date</span></button>
+        <button id="btnView" aria-label="Grid size" class="h-9 px-3 rounded-xl bg-zinc-800 hover:bg-zinc-700 text-zinc-200 text-xs font-semibold flex items-center gap-1.5 whitespace-nowrap"><i class="fa-solid fa-table-cells"></i><span id="viewLabel">4</span></button>
+    </div>
+    <div class="max-w-6xl mx-auto flex space-x-1 overflow-x-auto no-scrollbar" id="navTabs">
+        <button data-tab="photos" class="tab-btn active px-4 py-2 text-xs font-semibold border-b-2 flex items-center space-x-2 whitespace-nowrap"><i class="fa-solid fa-image"></i><span>Photos</span></button>
+        <button data-tab="albums" class="tab-btn px-4 py-2 text-xs font-medium border-b-2 border-transparent text-zinc-400 flex items-center space-x-2 whitespace-nowrap"><i class="fa-solid fa-folder"></i><span>Albums</span></button>
+        <button data-tab="dupes" class="tab-btn px-4 py-2 text-xs font-medium border-b-2 border-transparent text-zinc-400 flex items-center space-x-2 whitespace-nowrap"><i class="fa-solid fa-clone"></i><span>Duplicates</span></button>
+    </div>
+</div>
+
+<div id="toast" class="fixed top-20 left-1/2 -translate-x-1/2 z-[80] hidden px-4 py-2 rounded-xl bg-zinc-800 text-zinc-100 text-xs font-medium shadow-xl border border-zinc-700 max-w-[90vw] text-center"></div>
+
+<!-- MAIN -->
+<main class="flex-1 max-w-6xl w-full mx-auto p-3 sm:p-5">
+    <div id="statusBanner" class="hidden mb-3 p-3 rounded-2xl border border-amber-500/40 bg-amber-500/10 text-xs text-amber-500 font-medium"></div>
+
+    <section id="view-photos" class="tab-view">
+        <div id="albumCrumb" class="hidden mb-3 flex items-center justify-between">
+            <button id="btnCrumbBack" class="text-xs font-semibold accent-text flex items-center gap-1"><i class="fa-solid fa-arrow-left"></i> <span id="crumbName">Album</span></button>
+            <span id="crumbCount" class="text-[11px] text-zinc-400"></span>
+        </div>
+        <div id="photoGrid" class="grid gap-1.5"></div>
+        <div id="photoEmpty" class="hidden text-center py-16 bg-zinc-900/40 rounded-3xl border border-dashed border-zinc-800 p-6">
+            <div class="w-16 h-16 bg-zinc-900 rounded-full flex items-center justify-center mx-auto mb-4 text-zinc-500 text-2xl"><i class="fa-solid fa-images"></i></div>
+            <h3 class="text-base font-bold text-zinc-200">No Photos Found</h3>
+            <p class="text-xs text-zinc-400 max-w-sm mx-auto mt-1 mb-5" id="emptyMsg">Allow photo access or pick a folder.</p>
+            <button id="btnEmptyPick" class="accent-bg text-xs font-semibold px-4 py-2.5 rounded-xl shadow-md">Choose Photos</button>
+        </div>
+    </section>
+
+    <section id="view-albums" class="tab-view hidden space-y-3">
+        <div class="panel-bg flex items-center justify-between p-3.5 rounded-2xl border border-zinc-800">
+            <div><h2 class="text-sm font-bold text-zinc-100">Albums</h2><p class="text-[11px] text-zinc-400">Folders inside MyAlbums plus your other photo folders</p></div>
+            <button id="btnNewAlbum" class="accent-bg text-xs font-semibold px-3 py-2 rounded-xl shadow-md flex items-center gap-1.5"><i class="fa-solid fa-plus"></i><span>New Album</span></button>
+        </div>
+        <div id="albumGrid" class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-3"></div>
+    </section>
+
+    <section id="view-dupes" class="tab-view hidden space-y-3">
+        <div class="panel-bg flex items-center justify-between p-3.5 rounded-2xl border border-zinc-800 gap-3">
+            <div><h2 class="text-sm font-bold text-zinc-100">Duplicate Finder</h2><p id="dupeInfo" class="text-[11px] text-zinc-400">Finds identical files by size and content fingerprint</p></div>
+            <button id="btnScanDupes" class="accent-bg text-xs font-semibold px-3 py-2 rounded-xl shadow-md flex items-center gap-1.5 whitespace-nowrap"><i class="fa-solid fa-magnifying-glass"></i><span>Scan</span></button>
+        </div>
+        <div id="dupeList" class="space-y-3"></div>
+    </section>
+</main>
+
+<!-- SELECTION BAR -->
+<div id="selBar" class="hidden fixed bottom-0 left-0 right-0 z-40 px-3 pb-3" style="padding-bottom:calc(env(safe-area-inset-bottom) + 12px)">
+    <div class="panel-bg max-w-3xl mx-auto border border-zinc-800 rounded-2xl p-2.5 shadow-2xl flex items-center gap-2 overflow-x-auto no-scrollbar">
+        <button id="selClose" aria-label="Cancel selection" class="w-9 h-9 rounded-xl bg-zinc-800 text-zinc-200 flex-shrink-0"><i class="fa-solid fa-xmark"></i></button>
+        <span class="text-xs font-bold text-zinc-100 whitespace-nowrap"><span id="selCount">0</span> selected</span>
+        <button id="selAll" class="px-2.5 py-2 rounded-lg bg-zinc-800 text-zinc-200 text-xs font-semibold whitespace-nowrap">All</button>
+        <div class="flex-1"></div>
+        <button id="selShare" class="px-3 py-2 rounded-lg bg-zinc-800 text-zinc-200 text-xs font-semibold whitespace-nowrap"><i class="fa-solid fa-share-nodes mr-1"></i>Share</button>
+        <button id="selMove" class="px-3 py-2 rounded-lg bg-zinc-800 text-zinc-200 text-xs font-semibold whitespace-nowrap"><i class="fa-solid fa-folder-open mr-1"></i>Move</button>
+        <button id="selHide" class="px-3 py-2 rounded-lg bg-zinc-800 text-zinc-200 text-xs font-semibold whitespace-nowrap"><i class="fa-solid fa-eye-slash mr-1"></i><span id="selHideTxt">Hide</span></button>
+        <button id="selDelete" class="px-3 py-2 rounded-lg bg-red-600 text-white text-xs font-semibold whitespace-nowrap"><i class="fa-solid fa-trash-can mr-1"></i>Delete</button>
+    </div>
+</div>
+
+<div class="fixed bottom-1 left-0 right-0 z-10 text-center pointer-events-none"><p class="text-[10px] font-mono tracking-widest text-zinc-600 uppercase">Made by REAPER-357</p></div>
+
+<!-- VIEWER -->
+<div id="viewer" class="hidden fixed inset-0 z-[55] bg-black flex flex-col">
+    <div class="flex items-center justify-between px-3 py-2 bg-black/80 text-white z-10" style="padding-top:calc(env(safe-area-inset-top) + 8px)">
+        <button id="vClose" aria-label="Close" class="p-2.5 text-lg"><i class="fa-solid fa-arrow-left"></i></button>
+        <div class="min-w-0 flex-1 px-2 text-center"><p id="vName" class="text-xs font-bold truncate"></p><p id="vMeta" class="text-[10px] text-zinc-400 truncate"></p></div>
+        <button id="vShare" aria-label="Share" class="p-2.5 text-lg"><i class="fa-solid fa-share-nodes"></i></button>
+    </div>
+    <div id="vStage" class="flex-1 relative overflow-hidden flex items-center justify-center">
+        <img id="viewerImg" alt="">
+        <button id="vPrev" aria-label="Previous" class="absolute left-2 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-black/50 text-white"><i class="fa-solid fa-chevron-left"></i></button>
+        <button id="vNext" aria-label="Next" class="absolute right-2 top-1/2 -translate-y-1/2 w-10 h-10 rounded-full bg-black/50 text-white"><i class="fa-solid fa-chevron-right"></i></button>
+    </div>
+    <div class="flex items-center justify-around bg-black/80 py-2 text-white text-[10px]" style="padding-bottom:calc(env(safe-area-inset-bottom) + 8px)">
+        <button id="vEdit" class="flex flex-col items-center gap-1 px-2"><i class="fa-solid fa-sliders text-lg"></i>Edit</button>
+        <button id="vRename" class="flex flex-col items-center gap-1 px-2"><i class="fa-solid fa-pen text-lg"></i>Rename</button>
+        <button id="vMove" class="flex flex-col items-center gap-1 px-2"><i class="fa-solid fa-folder-open text-lg"></i>Move</button>
+        <button id="vHide" class="flex flex-col items-center gap-1 px-2"><i class="fa-solid fa-eye-slash text-lg"></i><span id="vHideTxt">Hide</span></button>
+        <button id="vDelete" class="flex flex-col items-center gap-1 px-2 text-red-400"><i class="fa-solid fa-trash-can text-lg"></i>Delete</button>
+    </div>
+</div>
+
+<!-- EDITOR -->
+<div id="editor" class="hidden fixed inset-0 z-[60] bg-black flex flex-col">
+    <div class="flex items-center justify-between px-3 py-2 text-white" style="padding-top:calc(env(safe-area-inset-top) + 8px)">
+        <button id="eCancel" class="px-3 py-2 text-xs font-semibold">Cancel</button>
+        <span class="text-xs font-bold">Edit Photo</span>
+        <button id="eSave" class="accent-bg px-4 py-2 rounded-xl text-xs font-semibold">Save</button>
+    </div>
+    <div class="flex-1 flex items-center justify-center overflow-hidden p-2"><canvas id="editCanvas" class="max-w-full max-h-full"></canvas></div>
+    <div class="p-3 space-y-2 text-xs text-zinc-300" style="padding-bottom:calc(env(safe-area-inset-bottom) + 12px)">
+        <div class="flex items-center justify-center gap-2">
+            <button id="eRotL" class="w-10 h-10 rounded-xl bg-zinc-800"><i class="fa-solid fa-rotate-left"></i></button>
+            <button id="eRotR" class="w-10 h-10 rounded-xl bg-zinc-800"><i class="fa-solid fa-rotate-right"></i></button>
+            <button id="eFlip" class="w-10 h-10 rounded-xl bg-zinc-800"><i class="fa-solid fa-left-right"></i></button>
+            <button id="eCrop" class="px-3 h-10 rounded-xl bg-zinc-800 font-semibold">Crop 1:1</button>
+            <button id="eReset" class="px-3 h-10 rounded-xl bg-zinc-800 font-semibold">Reset</button>
+        </div>
+        <div class="grid grid-cols-3 gap-3 max-w-lg mx-auto">
+            <label>Brightness<input id="eBri" type="range" min="50" max="150" value="100" class="w-full"></label>
+            <label>Contrast<input id="eCon" type="range" min="50" max="150" value="100" class="w-full"></label>
+            <label>Saturation<input id="eSat" type="range" min="0" max="200" value="100" class="w-full"></label>
+        </div>
+    </div>
+</div>
+
+<!-- PIN PROMPT -->
+<div id="pinModal" class="fixed inset-0 z-[70] bg-black/90 backdrop-blur-sm flex items-center justify-center p-4 hidden">
+    <div class="panel-bg w-full max-w-xs rounded-3xl p-6 border border-zinc-800 shadow-2xl space-y-4 text-center relative">
+        <button id="pinGear" aria-label="PIN options" class="hidden absolute top-4 right-4 w-9 h-9 rounded-xl text-zinc-400 hover:text-white text-lg"><i class="fa-solid fa-gear"></i></button>
+        <div class="w-12 h-12 accent-bg rounded-2xl flex items-center justify-center mx-auto text-xl"><i class="fa-solid fa-lock"></i></div>
+        <h3 id="pinTitle" class="text-sm font-bold text-white">Enter PIN</h3>
+        <p id="pinMsg" class="text-xs text-zinc-400 min-h-[16px]"></p>
+        <div id="pinDots" class="flex justify-center gap-3"></div>
+        <div id="pinPad" class="grid grid-cols-3 gap-2"></div>
+        <button id="pinCancel" class="text-xs text-zinc-400 font-semibold">Cancel</button>
+    </div>
+</div>
+
+<!-- SETTINGS -->
+<div id="settingsModal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 hidden">
+    <div class="panel-bg w-full max-w-sm rounded-3xl p-6 border border-zinc-800 shadow-2xl space-y-4 text-left relative max-h-[90vh] overflow-y-auto">
+        <button class="closeModalBtn absolute top-4 right-4 text-zinc-400 hover:text-white text-lg" aria-label="Close"><i class="fa-solid fa-xmark"></i></button>
+        <h3 class="text-base font-bold text-white text-center">Evergreen Gallery Settings</h3>
+        <div class="bg-black/50 p-3 rounded-2xl border border-zinc-800 space-y-2">
+            <span class="text-xs font-semibold text-zinc-300">App Background Theme</span>
+            <div class="grid grid-cols-3 gap-2 pt-1">
+                <button onclick="setAppTheme('black')" class="py-1.5 rounded-xl text-xs font-medium bg-zinc-900 border border-zinc-700 text-white">Pure Black</button>
+                <button onclick="setAppTheme('dark')" class="py-1.5 rounded-xl text-xs font-medium bg-zinc-800 border border-zinc-700 text-zinc-300">Dark</button>
+                <button onclick="setAppTheme('light')" class="py-1.5 rounded-xl text-xs font-medium bg-slate-200 border border-slate-300 text-slate-800">Light</button>
+            </div>
+        </div>
+        <div class="bg-black/50 p-3 rounded-2xl border border-zinc-800 space-y-2">
+            <span class="text-xs font-semibold text-zinc-300">Accent Color</span>
+            <div class="flex items-center justify-around pt-2">
+                <button aria-label="Green" onclick="setAccentColor('#10b981')" class="w-7 h-7 rounded-full bg-emerald-500"></button>
+                <button aria-label="Red" onclick="setAccentColor('#ef4444')" class="w-7 h-7 rounded-full bg-red-500"></button>
+                <button aria-label="Blue" onclick="setAccentColor('#3b82f6')" class="w-7 h-7 rounded-full bg-blue-500"></button>
+                <button aria-label="Purple" onclick="setAccentColor('#a855f7')" class="w-7 h-7 rounded-full bg-purple-500"></button>
+                <button aria-label="Amber" onclick="setAccentColor('#f59e0b')" class="w-7 h-7 rounded-full bg-amber-500"></button>
+            </div>
+        </div>
+        <div class="bg-black/50 p-3 rounded-2xl border border-zinc-800 space-y-2">
+            <span class="text-xs font-semibold text-zinc-300">Remove metadata when sharing</span>
+            <select id="setMeta" class="w-full px-3 py-2 bg-black border border-zinc-800 rounded-xl text-xs text-white">
+                <option value="ask">Ask every time</option>
+                <option value="always">Always remove</option>
+                <option value="never">Never remove</option>
+            </select>
+            <p class="text-[10px] text-zinc-500">Strips location, camera and date info (EXIF) from the shared copy. Originals are never changed.</p>
+        </div>
+        <div class="bg-black/50 p-3 rounded-2xl border border-zinc-800 space-y-2">
+            <span class="text-xs font-semibold text-zinc-300">Albums folder</span>
+            <input id="setAlbumRoot" type="text" class="w-full px-3 py-2 bg-black border border-zinc-800 rounded-xl text-xs text-white" placeholder="MyAlbums">
+            <p class="text-[10px] text-zinc-500">Folder on internal storage whose subfolders are albums.</p>
+        </div>
+        <p class="text-center text-[10px] font-mono text-zinc-500 uppercase tracking-widest">Designed by REAPER-357</p>
+    </div>
+</div>
+
+<!-- GENERIC PICKER / INPUT / CONFIRM / SORT / GRID MODALS -->
+<div id="pickModal" class="fixed inset-0 z-[65] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 hidden">
+    <div class="panel-bg w-full max-w-sm rounded-3xl p-5 border border-zinc-800 shadow-2xl space-y-3 text-left flex flex-col max-h-[85vh]">
+        <div class="flex items-center justify-between border-b border-zinc-800 pb-3"><h3 id="pickTitle" class="text-base font-bold text-white">Choose</h3><button class="closePick text-zinc-400 text-lg" aria-label="Close"><i class="fa-solid fa-xmark"></i></button></div>
+        <div id="pickList" class="overflow-y-auto space-y-1.5 max-h-[50vh]"></div>
+    </div>
+</div>
+<div id="inputModal" class="fixed inset-0 z-[65] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 hidden">
+    <div class="panel-bg w-full max-w-sm rounded-3xl p-6 border border-zinc-800 shadow-2xl space-y-4 text-left">
+        <h3 id="inputTitle" class="text-base font-bold text-white">Name</h3>
+        <input id="inputField" type="text" class="w-full px-3 py-2 bg-black border border-zinc-800 rounded-xl text-xs text-white focus:outline-none">
+        <div class="flex justify-end gap-2"><button id="inputCancel" class="px-4 py-2 text-xs font-semibold bg-zinc-800 rounded-xl text-white">Cancel</button><button id="inputOk" class="px-4 py-2 text-xs font-semibold accent-bg rounded-xl">OK</button></div>
+    </div>
+</div>
+<div id="confirmModal" class="fixed inset-0 z-[75] bg-black/80 backdrop-blur-sm flex items-center justify-center p-4 hidden">
+    <div class="panel-bg w-full max-w-xs rounded-3xl p-6 border border-zinc-800 shadow-2xl space-y-4 text-center">
+        <div id="confirmIcon" class="w-12 h-12 bg-red-950 text-red-500 rounded-2xl flex items-center justify-center mx-auto text-xl"><i class="fa-solid fa-triangle-exclamation"></i></div>
+        <h3 id="confirmTitle" class="text-sm font-bold text-white">Are you sure?</h3>
+        <p id="confirmMessage" class="text-xs text-zinc-400"></p>
+        <div class="flex items-center justify-center gap-2 pt-2">
+            <button id="confirmNo" class="px-4 py-2 text-xs font-semibold bg-zinc-800 rounded-xl text-white">No</button>
+            <button id="confirmYes" class="px-4 py-2 text-xs font-semibold bg-red-600 text-white rounded-xl">Yes</button>
+        </div>
+    </div>
+</div>
+<input type="file" id="fallbackInput" accept="image/*" multiple class="hidden">
+
+<script>
+/* ================= Evergreen Gallery ================= */
+const $ = id => document.getElementById(id);
+const IMG_RE = /\.(jpe?g|png|webp|gif|bmp|avif|heic|heif)$/i;
+const COLS = [2, 4, 6, 10, 20];
+const SORTS = [
+    ['date-desc', 'Date: Newest first', 'fa-arrow-down-wide-short', 'Date ↓'],
+    ['date-asc', 'Date: Oldest first', 'fa-arrow-up-wide-short', 'Date ↑'],
+    ['name-asc', 'Name: A to Z', 'fa-arrow-down-a-z', 'A–Z'],
+    ['name-desc', 'Name: Z to A', 'fa-arrow-up-z-a', 'Z–A']
+];
+
+function safeParse(s, f) { try { return s ? JSON.parse(s) : f; } catch (e) { return f; } }
+function esc(s) { return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+function isNative() { return !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform()); }
+function nativeCall(plugin, method, opts) {
+    const cap = window.Capacitor;
+    const p = cap && cap.Plugins && cap.Plugins[plugin];
+    if (p && typeof p[method] === 'function') return p[method](opts || {});
+    if (cap && cap.nativePromise) return cap.nativePromise(plugin, method, opts || {});
+    return Promise.reject(new Error(plugin + ' plugin unavailable'));
+}
+let toastTimer = null;
+function showToast(msg) {
+    const t = $('toast'); t.textContent = msg; t.classList.remove('hidden');
+    clearTimeout(toastTimer); toastTimer = setTimeout(() => t.classList.add('hidden'), 2800);
+}
+const errMsg = e => String((e && (e.message || e.errorMessage)) || e || 'unknown error').slice(0, 120);
+const PERM_HINT = ' Turn on "All files access" for Evergreen Gallery in Android Settings.';
+function hashStr(s) { let h = 5381; for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) | 0; return (h >>> 0).toString(36); }
+function splitName(n) { const i = n.lastIndexOf('.'); return i > 0 ? [n.slice(0, i), n.slice(i)] : [n, '']; }
+function joinPath(a, b) { return a ? a + '/' + b : b; }
+function parentOf(p) { const i = p.lastIndexOf('/'); return i === -1 ? '' : p.slice(0, i); }
+function baseOf(p) { return p.slice(p.lastIndexOf('/') + 1); }
+function fmtSize(b) { if (b > 1048576) return (b / 1048576).toFixed(1) + ' MB'; return Math.max(1, Math.round(b / 1024)) + ' KB'; }
+function monthLabel(ms) { return new Date(ms).toLocaleString(undefined, { month: 'long', year: 'numeric' }); }
+function fmtDate(ms) { return new Date(ms).toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' }); }
+function normMtime(m) { m = Number(m) || 0; return m && m < 1e11 ? m * 1000 : m; }
+
+/* ---------- Settings & theme ---------- */
+const settings = Object.assign({ meta: 'ask', albumRoot: 'MyAlbums', cols: 4, list: false, sort: 'date-desc' }, safeParse(localStorage.getItem('gg_settings'), {}));
+function saveSettings() { try { localStorage.setItem('gg_settings', JSON.stringify(settings)); } catch (e) {} }
+function setAccentColor(hex) {
+    try { localStorage.setItem('gg_accent', hex); } catch (e) {}
+    document.documentElement.style.setProperty('--accent-color', hex);
+    document.body.classList.contains('vault-mode') && document.documentElement.style.setProperty('--accent-color', '#a855f7');
+}
+function setAppTheme(t) {
+    try { localStorage.setItem('gg_theme', t); } catch (e) {}
+    document.documentElement.setAttribute('data-theme', t);
+    document.documentElement.classList.toggle('dark', t !== 'light');
+    const m = document.querySelector('meta[name=theme-color]'); if (m) m.content = t === 'light' ? '#f1f5f9' : (t === 'dark' ? '#0f172a' : '#000000');
+}
+function applyAccent() {
+    const base = localStorage.getItem('gg_accent') || '#10b981';
+    document.documentElement.style.setProperty('--accent-color', state.vault ? '#a855f7' : base);
+}
+
+/* ---------- State ---------- */
+const state = {
+    tab: 'photos', album: null, search: '', vault: false,
+    items: [], dirs: new Set(), extraDirs: new Set(safeParse(localStorage.getItem('gg_extra_dirs'), [])),
+    vaultItems: [], selected: new Set(), selecting: false, order: [], renderLimit: 400
+};
+const curItems = () => state.vault ? state.vaultItems : state.items;
+const byId = id => curItems().find(i => i.id === id);
+
+/* ---------- Native filesystem ---------- */
+const DIR = 'EXTERNAL_STORAGE';
+let rootUri = null;
+async function getRootUri() {
+    if (rootUri) return rootUri;
+    try { const r = await nativeCall('Filesystem', 'getUri', { path: '', directory: DIR }); rootUri = String(r.uri).replace(/\/+$/, ''); }
+    catch (e) { rootUri = 'file:///storage/emulated/0'; }
+    return rootUri;
+}
+function uriFor(rel) { return rootUri + '/' + rel.split('/').map(encodeURIComponent).join('/'); }
+function srcFor(rel) { return window.Capacitor.convertFileSrc(uriFor(rel)); }
+async function fsList(path) {
+    const r = await nativeCall('Filesystem', 'readdir', { path, directory: DIR });
+    return (r.files || []).map(f => typeof f === 'string' ? { name: f, type: f.includes('.') ? 'file' : 'directory' } : f);
+}
+const fsMkdir = path => nativeCall('Filesystem', 'mkdir', { path, directory: DIR, recursive: true }).catch(() => {});
+const fsRmdir = path => nativeCall('Filesystem', 'rmdir', { path, directory: DIR, recursive: true });
+const fsRename = (from, to) => nativeCall('Filesystem', 'rename', { from, to, directory: DIR, toDirectory: DIR });
+const fsDelete = path => nativeCall('Filesystem', 'deleteFile', { path, directory: DIR });
+const fsWrite = (path, b64) => nativeCall('Filesystem', 'writeFile', { path, data: b64, directory: DIR, recursive: true });
+async function ensureAccess(prompt) {
+    try {
+        const st = await nativeCall('Filesystem', 'checkPermissions', {});
+        if (prompt && st && st.publicStorage && st.publicStorage !== 'granted') await nativeCall('Filesystem', 'requestPermissions', {});
+    } catch (e) {}
+}
+
+async function scanNative(onProgress) {
+    await getRootUri();
+    const roots = [...new Set([settings.albumRoot, 'DCIM', 'Pictures'].filter(Boolean))];
+    const out = [], dirs = new Set(); const seen = new Set();
+    for (const root of roots) {
+        const stack = [root]; let visited = 0;
+        while (stack.length && visited < 6000) {
+            const dir = stack.pop(); if (seen.has(dir)) continue; seen.add(dir);
+            let items; try { items = await fsList(dir); } catch (e) { continue; }
+            visited++; dirs.add(dir);
+            for (const it of items) {
+                if (!it.name || it.name.startsWith('.')) continue;
+                const full = joinPath(dir, it.name);
+                if (it.type === 'directory') stack.push(full);
+                else if (IMG_RE.test(it.name)) {
+                    out.push({ id: 'n' + hashStr(full + '|' + (it.size || 0) + '|' + (it.mtime || 0)), name: it.name, rel: full, dir, album: baseOf(dir),
+                        src: srcFor(full), mtime: normMtime(it.mtime), size: it.size || 0 });
+                }
+            }
+            if (onProgress && visited % 8 === 0) onProgress(out.length);
+        }
+    }
+    return { items: out, dirs };
+}
+
+function ingestWebFiles(files) {
+    const add = [];
+    for (const f of files) {
+        if (!IMG_RE.test(f.name) && !(f.type || '').startsWith('image/')) continue;
+        const rel = f.webkitRelativePath || f.name; const dir = parentOf(rel) || 'Selected';
+        add.push({ id: 'w' + hashStr(rel + '|' + f.size + '|' + f.lastModified), name: f.name, rel, dir, album: baseOf(dir), file: f,
+            src: URL.createObjectURL(f), mtime: f.lastModified, size: f.size });
+    }
+    const have = new Set(state.items.map(i => i.id));
+    add.forEach(a => { if (!have.has(a.id)) { state.items.push(a); state.dirs.add(a.dir); } });
+    showToast(add.length + ' photo(s) added'); renderAll();
+}
+
+async function checkAllFiles() {
+    if (!isNative()) return;
+    let g = null; try { const r = await nativeCall('GalleryTools', 'hasAllFilesAccess'); g = !!(r && r.granted); } catch (e) { g = null; }
+    const b = $('statusBanner'); if (state.vault) return;
+    if (g === false) {
+        b.innerHTML = '<i class="fa-solid fa-triangle-exclamation mr-1"></i> Allow "All files access" so Evergreen Gallery can move, rename, delete and hide photos. <button id="grantAllBtn" class="underline font-bold ml-1">Allow</button>';
+        b.classList.remove('hidden'); $('grantAllBtn').onclick = () => nativeCall('GalleryTools', 'requestAllFilesAccess').catch(() => showToast('Open Android Settings > Apps > Evergreen Gallery > All files access'));
+    } else if (g === true) { b.classList.add('hidden'); b.innerHTML = ''; }
+}
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible' && isNative() && !state.vault) checkAllFiles(); });
+async function loadLibrary(prompt) {
+    const banner = $('statusBanner');
+    if (!isNative()) {
+        banner.textContent = 'Browser preview: choose photos to try the app. On Android (Capacitor) it reads your gallery and MyAlbums folder directly.';
+        banner.classList.remove('hidden'); renderAll(); return;
+    }
+    banner.classList.add('hidden');
+    await ensureAccess(prompt);
+    checkAllFiles();
+    showToast('Scanning photos…');
+    try {
+        const r = await scanNative(n => showToast('Found ' + n + ' photos…'));
+        state.items = r.items; state.dirs = r.dirs;
+        if (!r.items.length) { banner.textContent = 'No photos found. Make sure photo access is allowed in App Settings, then tap rescan.'; banner.classList.remove('hidden'); }
+        showToast(r.items.length + ' photos loaded');
+    } catch (e) { showToast('Could not read storage'); }
+    renderAll();
+}
+
+/* ---------- Sorting / filtering ---------- */
+function sortItems(arr) {
+    const [k, dir] = settings.sort.split('-'); const m = dir === 'asc' ? 1 : -1;
+    return arr.sort((a, b) => k === 'name' ? m * a.name.localeCompare(b.name, undefined, { numeric: true, sensitivity: 'base' }) : m * ((a.mtime || 0) - (b.mtime || 0)));
+}
+function visibleItems() {
+    const q = state.search.trim().toLowerCase();
+    let arr = curItems();
+    if (state.album !== null) arr = arr.filter(i => i.dir === state.album);
+    if (q) arr = arr.filter(i => i.name.toLowerCase().includes(q) || i.album.toLowerCase().includes(q));
+    return sortItems(arr.slice());
+}
+
+/* ---------- Rendering ---------- */
+function thumbHtml(it, dense) {
+    const sel = state.selected.has(it.id) ? ' sel' : '';
+    return '<div class="thumb' + sel + '" data-id="' + it.id + '"><img loading="lazy" decoding="async" alt="" data-src-id="' + it.id + '"' + (it.src ? ' src="' + it.src + '"' : '') + '><span class="chk"><i class="fa-solid fa-check"></i></span></div>';
+}
+function rowHtml(it) {
+    const sel = state.selected.has(it.id) ? ' sel' : '';
+    return '<div class="thumb lrow' + sel + '" data-id="' + it.id + '" style="aspect-ratio:auto;display:flex;align-items:center;gap:10px;padding:6px;background:var(--panel-bg);border-radius:12px"><div style="width:56px;height:56px;flex:none;position:relative;border-radius:8px;overflow:hidden;background:#27272a"><img loading="lazy" decoding="async" alt="" data-src-id="' + it.id + '"' + (it.src ? ' src="' + it.src + '"' : '') + ' style="width:100%;height:100%;object-fit:cover"><span class="chk"><i class="fa-solid fa-check"></i></span></div><div style="min-width:0;flex:1"><p class="text-xs font-semibold truncate text-zinc-100">' + esc(it.name) + '</p><p class="text-[11px] text-zinc-400 truncate">' + esc(it.album) + ' · ' + fmtDate(it.mtime) + (it.size ? ' · ' + fmtSize(it.size) : '') + '</p></div></div>';
+}
+
+function renderPhotos() {
+    const grid = $('photoGrid'); const arr = visibleItems();
+    state.order = arr.map(i => i.id);
+    $('albumCrumb').classList.toggle('hidden', state.album === null);
+    if (state.album !== null) { $('crumbName').textContent = baseOf(state.album); $('crumbCount').textContent = arr.length + ' photos'; }
+    $('photoEmpty').classList.toggle('hidden', arr.length > 0);
+    const da = $('btnDelAlbum'); if (da) da.classList.toggle('hidden', !(state.album !== null && !arr.length && !state.search && !state.vault));
+    $('emptyMsg').textContent = state.search ? 'Nothing matches your search.' : (state.vault ? 'The vault is empty. Hide photos to store them here.' : 'Allow photo access or choose photos to begin.');
+    $('btnEmptyPick').classList.toggle('hidden', state.vault || !!state.search);
+    const useDate = settings.sort.startsWith('date');
+    grid.className = 'grid gap-1.5' + (settings.cols >= 10 && !settings.list ? ' dense' : '');
+    grid.style.gridTemplateColumns = settings.list ? '1fr' : 'repeat(' + settings.cols + ', minmax(0, 1fr))';
+    if (settings.cols >= 10 && !settings.list) grid.style.gap = '2px'; else grid.style.gap = '';
+    let html = '', lastMonth = '', shown = 0;
+    const lim = state.renderLimit;
+    for (const it of arr) {
+        if (shown >= lim) break;
+        if (useDate) {
+            const ml = monthLabel(it.mtime);
+            if (ml !== lastMonth) { html += '<div class="month-head" data-month="1">' + ml + '</div>'; lastMonth = ml; }
+        }
+        html += settings.list ? rowHtml(it) : thumbHtml(it);
+        shown++;
+    }
+    if (arr.length > shown) html += '<div id="moreSentinel" style="grid-column:1/-1;height:40px"></div>';
+    grid.innerHTML = html;
+    if (state.vault) hydrateVaultThumbs();
+    const s = $('moreSentinel');
+    if (s && 'IntersectionObserver' in window) {
+        const io = new IntersectionObserver(es => { if (es[0].isIntersecting) { io.disconnect(); state.renderLimit += 400; renderPhotos(); } }, { rootMargin: '600px' });
+        io.observe(s);
+    }
+    updateSelectionUI();
+}
+
+function albumGroups() {
+    const map = new Map();
+    const q = state.search.trim().toLowerCase();
+    curItems().forEach(i => { if (!map.has(i.dir)) map.set(i.dir, []); map.get(i.dir).push(i); });
+    if (!state.vault) {
+        state.dirs.forEach(d => { if (d.startsWith(settings.albumRoot + '/') && !map.has(d)) map.set(d, []); });
+        state.extraDirs.forEach(d => { if (!map.has(d)) map.set(d, []); });
+    }
+    let groups = [...map.entries()].map(([dir, list]) => ({ dir, name: baseOf(dir), list: sortItems(list.slice().sort((a, b) => b.mtime - a.mtime)).slice(), count: list.length,
+        mine: dir === settings.albumRoot || dir.startsWith(settings.albumRoot + '/') }));
+    groups.forEach(g => { g.cover = g.list.slice().sort((a, b) => b.mtime - a.mtime)[0]; });
+    if (q) groups = groups.filter(g => g.name.toLowerCase().includes(q));
+    const [k, dir] = settings.sort.split('-'); const m = dir === 'asc' ? 1 : -1;
+    groups.sort((a, b) => k === 'name' ? m * a.name.localeCompare(b.name, undefined, { sensitivity: 'base' }) : m * (((a.cover && a.cover.mtime) || 0) - ((b.cover && b.cover.mtime) || 0)));
+    return groups;
+}
+function renderAlbums() {
+    const g = $('albumGrid'); const groups = albumGroups();
+    $('btnNewAlbum').classList.toggle('hidden', state.vault);
+    g.innerHTML = groups.length ? groups.map(a =>
+        '<button class="album-card text-left panel-bg rounded-2xl border border-zinc-800 overflow-hidden" data-dir="' + esc(a.dir) + '"><div class="thumb" style="border-radius:0;aspect-ratio:4/3">' +
+        (a.cover && a.cover.src ? '<img loading="lazy" alt="" data-src-id="' + a.cover.id + '" src="' + a.cover.src + '">' : '<div class="w-full h-full flex items-center justify-center text-zinc-600 text-3xl"><i class="fa-solid fa-folder-open"></i></div>') +
+        '</div><div class="p-2.5"><p class="text-xs font-bold text-zinc-100 truncate">' + esc(a.name) + '</p><p class="text-[11px] text-zinc-400">' + a.count + ' photo' + (a.count === 1 ? '' : 's') + (a.mine ? ' · <span class="accent-text">MyAlbums</span>' : '') + '</p></div></button>'
+    ).join('') : '<p class="col-span-full text-center text-xs text-zinc-500 py-10">No albums yet.</p>';
+    if (state.vault) hydrateVaultThumbs();
+}
+function renderAll() {
+    if (state.tab === 'photos') renderPhotos();
+    else if (state.tab === 'albums') renderAlbums();
+    $('viewLabel').textContent = settings.list ? 'List' : settings.cols;
+    $('sortLabel').textContent = (SORTS.find(s => s[0] === settings.sort) || SORTS[0])[3];
+    $('btnView').querySelector('i').className = 'fa-solid ' + (settings.list ? 'fa-list' : 'fa-table-cells');
+    $('btnSort').querySelector('i').className = 'fa-solid ' + (SORTS.find(s => s[0] === settings.sort) || SORTS[0])[2];
+}
+function switchTab(t) {
+    state.tab = t; if (t !== 'photos') state.album = null;
+    document.querySelectorAll('.tab-view').forEach(v => v.classList.add('hidden'));
+    $('view-' + t).classList.remove('hidden');
+    document.querySelectorAll('.tab-btn').forEach(b => {
+        const on = b.dataset.tab === t; b.classList.toggle('active', on);
+        b.classList.toggle('text-zinc-400', !on); b.classList.toggle('border-transparent', !on);
+    });
+    clearSelection(); state.renderLimit = 400; renderAll();
+}
+document.querySelectorAll('.tab-btn').forEach(b => b.addEventListener('click', () => switchTab(b.dataset.tab)));
+$('searchInput').addEventListener('input', e => { state.search = e.target.value; state.renderLimit = 400; renderAll(); });
+$('btnCrumbBack').addEventListener('click', () => { state.album = null; switchTab('albums'); });
+$('albumGrid').addEventListener('click', e => {
+    const c = e.target.closest('.album-card'); if (!c) return;
+    state.album = c.dataset.dir; state.tab = 'photos'; switchTab('photos'); state.album = c.dataset.dir; renderAll();
+});
+$('btnRefresh').addEventListener('click', () => state.vault ? showToast('Vault is up to date') : loadLibrary(true));
+$('btnEmptyPick').addEventListener('click', () => $('fallbackInput').click());
+$('fallbackInput').addEventListener('change', e => { ingestWebFiles(Array.from(e.target.files)); e.target.value = ''; });
+
+/* ---------- Dialog helpers ---------- */
+function openModal(id) { $(id).classList.remove('hidden'); }
+function closeModal(id) { $(id).classList.add('hidden'); }
+document.querySelectorAll('.closeModalBtn').forEach(b => b.addEventListener('click', () => closeModal('settingsModal')));
+function askConfirm(title, msg, yesLabel, danger) {
+    return new Promise(res => {
+        $('confirmTitle').textContent = title; $('confirmMessage').textContent = msg;
+        $('confirmYes').textContent = yesLabel || 'Yes';
+        $('confirmYes').className = 'px-4 py-2 text-xs font-semibold rounded-xl text-white ' + (danger === false ? 'accent-bg' : 'bg-red-600');
+        $('confirmIcon').className = 'w-12 h-12 rounded-2xl flex items-center justify-center mx-auto text-xl ' + (danger === false ? 'accent-bg' : 'bg-red-950 text-red-500');
+        openModal('confirmModal');
+        const done = v => { closeModal('confirmModal'); $('confirmYes').onclick = $('confirmNo').onclick = null; res(v); };
+        $('confirmYes').onclick = () => done(true); $('confirmNo').onclick = () => done(false);
+    });
+}
+function askText(title, value) {
+    return new Promise(res => {
+        $('inputTitle').textContent = title; $('inputField').value = value || ''; openModal('inputModal');
+        setTimeout(() => { $('inputField').focus(); $('inputField').select(); }, 50);
+        const done = v => { closeModal('inputModal'); $('inputOk').onclick = $('inputCancel').onclick = null; $('inputField').onkeydown = null; res(v); };
+        $('inputOk').onclick = () => done($('inputField').value.trim() || null); $('inputCancel').onclick = () => done(null);
+        $('inputField').onkeydown = e => { if (e.key === 'Enter') done($('inputField').value.trim() || null); };
+    });
+}
+function askChoice(title, options) {
+    return new Promise(res => {
+        $('pickTitle').textContent = title;
+        $('pickList').innerHTML = options.map((o, i) => '<button data-i="' + i + '" class="w-full text-left px-3 py-2.5 rounded-xl bg-black/40 border border-zinc-800 hover:border-zinc-700 flex items-center gap-3 text-xs font-semibold text-zinc-100"><i class="fa-solid ' + (o.icon || 'fa-circle') + ' text-zinc-400 w-4 text-center"></i><span class="truncate flex-1">' + esc(o.label) + '</span>' + (o.sub ? '<span class="text-[10px] text-zinc-500">' + esc(o.sub) + '</span>' : '') + '</button>').join('');
+        openModal('pickModal');
+        const done = v => { closeModal('pickModal'); $('pickList').onclick = null; document.querySelector('.closePick').onclick = null; res(v); };
+        $('pickList').onclick = e => { const b = e.target.closest('button'); if (b) done(options[+b.dataset.i].value); };
+        document.querySelector('.closePick').onclick = () => done(undefined);
+    });
+}
+async function pickAlbum(title) {
+    const groups = albumGroups().filter(g => !state.vault || true);
+    const opts = [{ label: 'New album…', icon: 'fa-folder-plus', value: '__new__' }].concat(groups.map(g => ({ label: g.name, sub: g.count + '', icon: 'fa-folder', value: g.dir })));
+    const v = await askChoice(title, opts);
+    if (v === undefined) return null;
+    if (v === '__new__') {
+        const name = await askText('New album name', ''); if (!name) return null;
+        const clean = name.replace(/[\\/:*?"<>|]/g, '_');
+        const dir = joinPath(settings.albumRoot, clean);
+        if (isNative()) await fsMkdir(dir);
+        state.extraDirs.add(dir); state.dirs.add(dir);
+        try { localStorage.setItem('gg_extra_dirs', JSON.stringify([...state.extraDirs])); } catch (e) {}
+        return dir;
+    }
+    return v;
+}
+$('btnNewAlbum').addEventListener('click', async () => {
+    const name = await askText('New album name', ''); if (!name) return;
+    const dir = joinPath(settings.albumRoot, name.replace(/[\\/:*?"<>|]/g, '_'));
+    if (isNative()) await fsMkdir(dir);
+    state.extraDirs.add(dir); state.dirs.add(dir);
+    try { localStorage.setItem('gg_extra_dirs', JSON.stringify([...state.extraDirs])); } catch (e) {}
+    renderAll(); showToast('Album created');
+});
+
+/* ---------- Sort / grid menus ---------- */
+$('btnSort').addEventListener('click', async () => {
+    const v = await askChoice('Order', SORTS.map(s => ({ label: s[1], icon: s[2], value: s[0] })));
+    if (v) { settings.sort = v; saveSettings(); renderAll(); }
+});
+$('btnView').addEventListener('click', async () => {
+    const opts = COLS.map(c => ({ label: c + ' columns' + (c >= 10 ? ' (desktop)' : ''), icon: 'fa-table-cells', value: c })).concat([{ label: 'List', icon: 'fa-list', value: 'list' }]);
+    const v = await askChoice('View', opts);
+    if (v === undefined) return;
+    if (v === 'list') settings.list = true; else { settings.list = false; settings.cols = v; }
+    saveSettings(); renderAll();
+});
+
+/* ---------- Selection (tap, long press, drag-select) ---------- */
+function updateSelectionUI() {
+    const n = state.selected.size;
+    state.selecting = state.selecting && n >= 0;
+    document.body.classList.toggle('selecting', state.selecting);
+    $('selBar').classList.toggle('hidden', !state.selecting);
+    $('selCount').textContent = n;
+    $('selHideTxt').textContent = state.vault ? 'Unhide' : 'Hide';
+    ['selShare', 'selMove', 'selHide', 'selDelete'].forEach(id => $(id).disabled = n === 0);
+    $('photoGrid').querySelectorAll('[data-id]').forEach(el => el.classList.toggle('sel', state.selected.has(el.dataset.id)));
+}
+function clearSelection() { state.selected.clear(); state.selecting = false; updateSelectionUI(); }
+function setSel(id, on) { on ? state.selected.add(id) : state.selected.delete(id); }
+function toggleSel(id) { setSel(id, !state.selected.has(id)); updateSelectionUI(); }
+$('selClose').addEventListener('click', clearSelection);
+$('selAll').addEventListener('click', () => {
+    const all = state.order.every(id => state.selected.has(id));
+    state.order.forEach(id => setSel(id, !all)); updateSelectionUI();
+});
+
+(function initSelection() {
+    const grid = $('photoGrid');
+    let timer = null, startX = 0, startY = 0, pressId = null, dragging = false, anchor = -1, lastIdx = -1, baseSet = null, scrollRAF = null, lastY = 0, moved = false, suppressClick = false;
+    const idxOf = id => state.order.indexOf(id);
+    function targetAt(x, y) { const el = document.elementFromPoint(x, y); const t = el && el.closest && el.closest('#photoGrid [data-id]'); return t ? t.dataset.id : null; }
+    function applyRange(curIdx) {
+        if (curIdx < 0 || anchor < 0) return;
+        const a = Math.min(anchor, curIdx), b = Math.max(anchor, curIdx);
+        state.selected = new Set(baseSet);
+        for (let i = a; i <= b; i++) state.selected.add(state.order[i]);
+        lastIdx = curIdx; updateSelectionUI();
+    }
+    function autoScroll() {
+        if (!dragging) return;
+        const h = window.innerHeight; let dy = 0;
+        if (lastY < 110) dy = -Math.min(18, (110 - lastY) / 4 + 4); else if (lastY > h - 100) dy = Math.min(18, (lastY - (h - 100)) / 4 + 4);
+        if (dy) window.scrollBy(0, dy);
+        scrollRAF = requestAnimationFrame(autoScroll);
+    }
+    function begin(id, x, y) {
+        state.selecting = true; dragging = true; suppressClick = true; document.body.classList.add('noselect-drag');
+        baseSet = new Set(state.selected); anchor = idxOf(id); lastIdx = anchor;
+        state.selected.add(id); baseSet.add(id); updateSelectionUI();
+        if (navigator.vibrate) try { navigator.vibrate(25); } catch (e) {}
+        lastY = y; cancelAnimationFrame(scrollRAF); scrollRAF = requestAnimationFrame(autoScroll);
+    }
+    function end() {
+        clearTimeout(timer); timer = null; pressId = null;
+        if (dragging) { dragging = false; cancelAnimationFrame(scrollRAF); document.body.classList.remove('noselect-drag'); setTimeout(() => { suppressClick = false; }, 50); }
+    }
+    function down(e, x, y) {
+        const t = e.target.closest('#photoGrid [data-id]'); if (!t) return;
+        pressId = t.dataset.id; startX = x; startY = y; moved = false;
+        if (state.selecting) { /* in selection mode a touch can start a drag immediately after short hold */ }
+        clearTimeout(timer);
+        timer = setTimeout(() => { if (pressId && !moved) begin(pressId, x, y); }, 420);
+    }
+    function move(e, x, y) {
+        if (!pressId && !dragging) return;
+        if (!dragging) { if (Math.abs(x - startX) > 10 || Math.abs(y - startY) > 10) { moved = true; clearTimeout(timer); } return; }
+        if (e.cancelable) e.preventDefault();
+        lastY = y;
+        const id = targetAt(x, y); if (!id) return;
+        const i = idxOf(id); if (i !== lastIdx) applyRange(i);
+    }
+    grid.addEventListener('touchstart', e => { const t = e.touches[0]; down(e, t.clientX, t.clientY); }, { passive: true });
+    document.addEventListener('touchmove', e => { const t = e.touches[0]; move(e, t.clientX, t.clientY); }, { passive: false });
+    document.addEventListener('touchend', end); document.addEventListener('touchcancel', end);
+    grid.addEventListener('mousedown', e => { if (e.button === 0) down(e, e.clientX, e.clientY); });
+    document.addEventListener('mousemove', e => move(e, e.clientX, e.clientY));
+    document.addEventListener('mouseup', end);
+    grid.addEventListener('contextmenu', e => { if (e.target.closest('[data-id]')) e.preventDefault(); });
+    grid.addEventListener('click', e => {
+        if (suppressClick) { e.preventDefault(); return; }
+        const t = e.target.closest('[data-id]'); if (!t) return;
+        if (state.selecting) toggleSel(t.dataset.id); else openViewer(t.dataset.id);
+    });
+})();
+
+/* ---------- File operations ---------- */
+function uniqueName(dir, name, ignoreId) {
+    const taken = new Set(curItems().filter(i => i.dir === dir && i.id !== ignoreId).map(i => i.name.toLowerCase()));
+    if (!taken.has(name.toLowerCase())) return name;
+    const [b, e] = splitName(name); let n = 1;
+    while (taken.has((b + ' (' + n + ')' + e).toLowerCase())) n++;
+    return b + ' (' + n + ')' + e;
+}
+function relocate(it, newDir, newName) {
+    it.dir = newDir; it.album = baseOf(newDir) || newDir; it.name = newName; it.rel = joinPath(newDir, newName);
+    if (isNative() && !it.file) it.src = srcFor(it.rel);
+}
+async function moveItems(list, destDir) {
+    let ok = 0, err = null;
+    if (isNative()) await fsMkdir(destDir);
+    for (const it of list) {
+        if (it.dir === destDir) continue;
+        const nm = uniqueName(destDir, it.name, it.id);
+        try {
+            if (isNative() && !it.file) await fsRename(it.rel, joinPath(destDir, nm));
+            relocate(it, destDir, nm); ok++;
+        } catch (e) { err = e; }
+    }
+    state.dirs.add(destDir);
+    showToast(err && !ok ? 'Move failed: ' + errMsg(err) + PERM_HINT : ok + ' moved to ' + baseOf(destDir)); return ok;
+}
+async function deleteItems(list) {
+    let ok = 0, err = null;
+    for (const it of list) {
+        try {
+            if (state.vault) await vaultRemove(it);
+            else if (isNative() && !it.file) await fsDelete(it.rel);
+            const arr = curItems(); const i = arr.indexOf(it); if (i > -1) arr.splice(i, 1); ok++;
+        } catch (e) { err = e; }
+    }
+    if (state.vault) await vaultSaveIndex();
+    showToast(err && !ok ? 'Delete failed: ' + errMsg(err) + PERM_HINT : ok + ' deleted' + (err ? ' (' + (list.length - ok) + ' failed)' : '')); return ok;
+}
+async function renameItem(it) {
+    const [b, ext] = splitName(it.name);
+    const nn = await askText('Rename', b); if (!nn) return false;
+    const nm = uniqueName(it.dir, nn.replace(/[\\/:*?"<>|]/g, '_') + ext, it.id);
+    if (nm === it.name) return false;
+    if (state.vault) { it.name = nm; await vaultSaveIndex(); return true; }
+    try { if (isNative() && !it.file) await fsRename(it.rel, joinPath(it.dir, nm)); relocate(it, it.dir, nm); return true; }
+    catch (e) { showToast('Rename failed: ' + errMsg(e) + PERM_HINT); return false; }
+}
+const selItems = () => [...state.selected].map(byId).filter(Boolean);
+
+$('selDelete').addEventListener('click', async () => {
+    const l = selItems(); if (!l.length) return;
+    if (!await askConfirm('Delete ' + l.length + ' photo' + (l.length > 1 ? 's' : '') + '?', 'This cannot be undone.', 'Delete')) return;
+    await deleteItems(l); clearSelection(); renderAll();
+});
+$('selMove').addEventListener('click', async () => {
+    const l = selItems(); if (!l.length) return;
+    if (state.vault) return showToast('Unhide photos first to move them');
+    const d = await pickAlbum('Move ' + l.length + ' to album'); if (!d) return;
+    await moveItems(l, d); clearSelection(); renderAll();
+});
+
+/* ================= VAULT (AES-GCM, PIN-wrapped master key) ================= */
+const enc = new TextEncoder(), dec = new TextDecoder();
+const b64 = {
+    from(u8) { let s = ''; for (let i = 0; i < u8.length; i += 0x8000) s += String.fromCharCode.apply(null, u8.subarray(i, i + 0x8000)); return btoa(s); },
+    to(str) { const s = atob(str); const u = new Uint8Array(s.length); for (let i = 0; i < s.length; i++) u[i] = s.charCodeAt(i); return u; }
+};
+let masterKey = null;
+
+async function kekFromPin(pin, salt) {
+    const base = await crypto.subtle.importKey('raw', enc.encode(pin), 'PBKDF2', false, ['deriveKey']);
+    return crypto.subtle.deriveKey({ name: 'PBKDF2', salt, iterations: 200000, hash: 'SHA-256' }, base, { name: 'AES-GCM', length: 256 }, false, ['encrypt', 'decrypt']);
+}
+async function aesEnc(key, u8) {
+    const iv = crypto.getRandomValues(new Uint8Array(12));
+    const ct = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, u8));
+    const out = new Uint8Array(12 + ct.length); out.set(iv); out.set(ct, 12); return out;
+}
+async function aesDec(key, u8) {
+    return new Uint8Array(await crypto.subtle.decrypt({ name: 'AES-GCM', iv: u8.subarray(0, 12) }, key, u8.subarray(12)));
+}
+const vaultMeta = () => safeParse(localStorage.getItem('gg_vault_meta'), null);
+async function createVault(pin) {
+    const salt = crypto.getRandomValues(new Uint8Array(16));
+    const raw = crypto.getRandomValues(new Uint8Array(32));
+    const kek = await kekFromPin(pin, salt);
+    const wrapped = await aesEnc(kek, raw);
+    localStorage.setItem('gg_vault_meta', JSON.stringify({ salt: b64.from(salt), wrapped: b64.from(wrapped) }));
+    masterKey = await crypto.subtle.importKey('raw', raw, 'AES-GCM', false, ['encrypt', 'decrypt']);
+}
+async function unlockVault(pin) {
+    const m = vaultMeta(); if (!m) return false;
+    try {
+        const kek = await kekFromPin(pin, b64.to(m.salt));
+        const raw = await aesDec(kek, b64.to(m.wrapped));
+        masterKey = await crypto.subtle.importKey('raw', raw, 'AES-GCM', false, ['encrypt', 'decrypt']);
+        return true;
+    } catch (e) { return false; }
+}
+async function rewrapVault(oldPin, newPin) {
+    const m = vaultMeta(); const kek = await kekFromPin(oldPin, b64.to(m.salt));
+    const raw = await aesDec(kek, b64.to(m.wrapped));
+    const salt = crypto.getRandomValues(new Uint8Array(16));
+    const nk = await kekFromPin(newPin, salt);
+    localStorage.setItem('gg_vault_meta', JSON.stringify({ salt: b64.from(salt), wrapped: b64.from(await aesEnc(nk, raw)) }));
+}
+
+/* ---- vault byte storage: native app-private dir, or IndexedDB in browser ---- */
+let idbP = null;
+function idb() {
+    if (!idbP) idbP = new Promise((res, rej) => { const r = indexedDB.open('gg_vault', 1); r.onupgradeneeded = () => r.result.createObjectStore('f'); r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error); });
+    return idbP;
+}
+async function idbOp(mode, fn) { const db = await idb(); return new Promise((res, rej) => { const tx = db.transaction('f', mode); const rq = fn(tx.objectStore('f')); tx.oncomplete = () => res(rq && rq.result); tx.onerror = () => rej(tx.error); }); }
+const vstore = {
+    async put(k, u8) {
+        if (isNative()) return nativeCall('Filesystem', 'writeFile', { path: 'vault/' + k, data: b64.from(u8), directory: 'DATA', recursive: true });
+        return idbOp('readwrite', s => s.put(u8, k));
+    },
+    async get(k) {
+        if (isNative()) { try { const r = await nativeCall('Filesystem', 'readFile', { path: 'vault/' + k, directory: 'DATA' }); return b64.to(r.data); } catch (e) { return null; } }
+        const v = await idbOp('readonly', s => s.get(k)); return v || null;
+    },
+    async del(k) {
+        if (isNative()) return nativeCall('Filesystem', 'deleteFile', { path: 'vault/' + k, directory: 'DATA' }).catch(() => {});
+        return idbOp('readwrite', s => s.delete(k));
+    }
+};
+async function vaultLoadIndex() {
+    const raw = await vstore.get('index.enc');
+    if (!raw) { state.vaultItems = []; return; }
+    try {
+        const arr = JSON.parse(dec.decode(await aesDec(masterKey, raw)));
+        state.vaultItems = arr.map(a => Object.assign({ vault: true, src: null }, a, { album: baseOf(a.dir) || a.dir }));
+    } catch (e) { state.vaultItems = []; showToast('Vault index unreadable'); }
+}
+async function vaultSaveIndex() {
+    if (!masterKey) return;
+    const arr = state.vaultItems.map(i => ({ id: i.id, name: i.name, dir: i.dir, mtime: i.mtime, size: i.size, mime: i.mime }));
+    await vstore.put('index.enc', await aesEnc(masterKey, enc.encode(JSON.stringify(arr))));
+}
+const mimeOf = n => { const e = (n.split('.').pop() || '').toLowerCase(); return { jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', webp: 'image/webp', gif: 'image/gif', bmp: 'image/bmp', avif: 'image/avif', heic: 'image/heic', heif: 'image/heif' }[e] || 'image/jpeg'; };
+async function vaultBytes(it) { const raw = await vstore.get(it.id + '.enc'); if (!raw) throw new Error('missing'); return aesDec(masterKey, raw); }
+async function vaultUrl(it) {
+    if (it.src) return it.src;
+    const u8 = await vaultBytes(it); it.src = URL.createObjectURL(new Blob([u8], { type: it.mime || mimeOf(it.name) })); return it.src;
+}
+async function vaultRemove(it) { await vstore.del(it.id + '.enc'); if (it.src) { try { URL.revokeObjectURL(it.src); } catch (e) {} } }
+
+/* ---- lazy decrypt thumbnails in vault ---- */
+const thumbQueue = []; let thumbBusy = 0; let thumbIO = null;
+function hydrateVaultThumbs() {
+    if (thumbIO) thumbIO.disconnect();
+    thumbIO = new IntersectionObserver(es => es.forEach(e => {
+        if (!e.isIntersecting) return; thumbIO.unobserve(e.target); thumbQueue.push(e.target); pumpThumbs();
+    }), { rootMargin: '300px' });
+    document.querySelectorAll('img[data-src-id]').forEach(img => { const it = byId(img.dataset.srcId); if (it && it.vault) { if (it.src) img.src = it.src; else thumbIO.observe(img); } });
+}
+function pumpThumbs() {
+    while (thumbBusy < 3 && thumbQueue.length) {
+        const img = thumbQueue.shift(); const it = byId(img.dataset.srcId); if (!it) continue; thumbBusy++;
+        vaultUrl(it).then(u => { img.src = u; }).catch(() => {}).finally(() => { thumbBusy--; pumpThumbs(); });
+    }
+}
+
+/* ---- hide / unhide ---- */
+async function itemBytes(it) {
+    if (it.vault) return vaultBytes(it);
+    if (it.file) return new Uint8Array(await it.file.arrayBuffer());
+    const r = await fetch(it.src); return new Uint8Array(await r.arrayBuffer());
+}
+async function ensureUnlocked() {
+    if (masterKey) return true;
+    return await promptUnlock();
+}
+async function hideItems(list) {
+    if (!list.length) return 0;
+    if (!await ensureUnlocked()) return 0;
+    if (!state.vaultItems.length) await vaultLoadIndex();
+    let ok = 0, err = null;
+    for (const it of list) {
+        try {
+            const u8 = await itemBytes(it);
+            await vstore.put(it.id + '.enc', await aesEnc(masterKey, u8));
+            if (isNative() && !it.file) { try { await fsDelete(it.rel); } catch (e) { await vstore.del(it.id + '.enc'); throw e; } }
+            state.vaultItems.push({ id: it.id, name: it.name, dir: it.dir, album: it.album, mtime: it.mtime, size: it.size, mime: mimeOf(it.name), vault: true, src: null });
+            const i = state.items.indexOf(it); if (i > -1) state.items.splice(i, 1); ok++;
+        } catch (e) { err = e; }
+    }
+    await vaultSaveIndex();
+    showToast(err && !ok ? 'Hide failed: ' + errMsg(err) + PERM_HINT : ok + ' hidden in vault'); return ok;
+}
+async function unhideItems(list) {
+    let ok = 0, err = null;
+    for (const it of list) {
+        try {
+            const u8 = await vaultBytes(it);
+            const nm = uniqueName(it.dir, it.name, it.id); const rel = joinPath(it.dir, nm);
+            const entry = { id: it.id, name: nm, rel, dir: it.dir, album: it.album, mtime: it.mtime, size: it.size };
+            if (isNative()) { await fsWrite(rel, b64.from(u8)); entry.src = srcFor(rel); }
+            else { const f = new File([u8], nm, { type: mimeOf(nm), lastModified: it.mtime }); entry.file = f; entry.src = URL.createObjectURL(f); }
+            await vaultRemove(it);
+            const i = state.vaultItems.indexOf(it); if (i > -1) state.vaultItems.splice(i, 1);
+            state.items.push(entry); state.dirs.add(it.dir); ok++;
+        } catch (e) { err = e; }
+    }
+    await vaultSaveIndex();
+    showToast(err && !ok ? 'Unhide failed: ' + errMsg(err) + PERM_HINT : ok + ' restored to gallery'); return ok;
+}
+$('selHide').addEventListener('click', async () => {
+    const l = selItems(); if (!l.length) return;
+    if (state.vault) { await unhideItems(l); } else { await hideItems(l); }
+    clearSelection(); renderAll();
+});
+
+/* ---- PIN prompt ---- */
+function askPin(title, msg, gear) {
+    return new Promise(res => {
+        let val = ''; $('pinTitle').textContent = title; $('pinMsg').textContent = msg || ''; $('pinGear').classList.toggle('hidden', !gear);
+        const dots = () => { $('pinDots').innerHTML = Array.from({ length: Math.max(4, val.length) }, (_, i) => '<span class="pin-dot' + (i < val.length ? ' on' : '') + '"></span>').join(''); };
+        $('pinPad').innerHTML = [1, 2, 3, 4, 5, 6, 7, 8, 9, 'back', 0, 'ok'].map(k => '<button class="pin-key" data-k="' + k + '">' + (k === 'back' ? '<i class="fa-solid fa-delete-left"></i>' : k === 'ok' ? '<i class="fa-solid fa-check"></i>' : k) + '</button>').join('');
+        dots(); openModal('pinModal');
+        const done = v => { closeModal('pinModal'); $('pinPad').onclick = null; $('pinCancel').onclick = null; $('pinGear').onclick = null; document.removeEventListener('keydown', kd, true); res(v); };
+        const press = k => {
+            if (k === 'back') val = val.slice(0, -1);
+            else if (k === 'ok') { if (val.length >= 4) return done(val); $('pinMsg').textContent = 'PIN must be 4 to 8 digits'; }
+            else if (val.length < 8) val += k;
+            dots();
+        };
+        const kd = e => { if (/^\d$/.test(e.key)) press(e.key); else if (e.key === 'Backspace') press('back'); else if (e.key === 'Enter') press('ok'); else if (e.key === 'Escape') done(null); else return; e.preventDefault(); e.stopPropagation(); };
+        document.addEventListener('keydown', kd, true);
+        $('pinPad').onclick = e => { const b = e.target.closest('button'); if (b) press(b.dataset.k); };
+        $('pinCancel').onclick = () => done(null);
+        $('pinGear').onclick = () => done('__gear__');
+    });
+}
+async function promptUnlock() {
+    if (!vaultMeta()) {
+        const a = await askPin('Create Vault PIN', 'Choose 4 to 8 digits. If you forget it, vault photos cannot be recovered.'); if (!a) return false;
+        const b = await askPin('Confirm PIN', 'Enter the same PIN again');
+        if (b !== a) { showToast(b ? 'PINs did not match' : 'Cancelled'); return false; }
+        await createVault(a); return true;
+    }
+    let msg = '';
+    for (;;) {
+        const p = await askPin('Enter PIN', msg, true); if (!p) return false;
+        if (p === '__gear__') { await changePinFlow(); masterKey = null; msg = ''; continue; }
+        if (await unlockVault(p)) return true;
+        msg = 'Wrong PIN, try again';
+    }
+}
+async function changePinFlow() {
+    const o = await askPin('Current PIN', ''); if (!o) return;
+    if (!await unlockVault(o)) return showToast('Wrong PIN');
+    const a = await askPin('New PIN', '4 to 8 digits'); if (!a) return;
+    const b = await askPin('Confirm new PIN', ''); if (a !== b) return showToast('PINs did not match');
+    await rewrapVault(o, a); showToast('PIN changed');
+}
+
+/* ---- secret entry: tap paw logo 3 times ---- */
+let tapCount = 0, tapTimer = null;
+$('logoBtn').addEventListener('click', async () => {
+    tapCount++; clearTimeout(tapTimer); tapTimer = setTimeout(() => { tapCount = 0; }, 900);
+    if (tapCount < 3) return; tapCount = 0;
+    if (state.vault) return exitVault();
+    masterKey = null;                       // always require the PIN to enter
+    if (!await promptUnlock()) return;
+    await enterVault();
+});
+async function enterVault() {
+    clearSelection(); closeViewer();
+    await vaultLoadIndex();
+    state.vault = true; state.album = null; state.search = ''; $('searchInput').value = '';
+    document.body.classList.add('vault-mode'); applyAccent();
+    $('appTitle').textContent = 'VAULT'; $('appSub').textContent = 'Hidden · tap the paw 3 times to exit';
+    const b = $('statusBanner'); b.innerHTML = '<i class="fa-solid fa-lock mr-1"></i> Vault open. <button id="exitVaultBtn" class="underline font-bold ml-1">Lock &amp; exit</button>'; b.classList.remove('hidden');
+    $('exitVaultBtn').onclick = exitVault;
+    thumbQueue.length = 0; switchTab('photos');
+}
+function exitVault() {
+    clearSelection(); closeViewer();
+    state.vault = false; state.album = null; state.search = ''; $('searchInput').value = '';
+    state.vaultItems.forEach(i => { if (i.src) { try { URL.revokeObjectURL(i.src); } catch (e) {} i.src = null; } });
+    state.vaultItems = []; masterKey = null;
+    document.body.classList.remove('vault-mode'); applyAccent();
+    $('appTitle').textContent = 'EVERGREEN GALLERY'; $('appSub').textContent = 'Photo Gallery';
+    const b = $('statusBanner'); b.classList.add('hidden'); b.innerHTML = '';
+    if (!isNative()) { b.textContent = 'Browser preview: choose photos to try the app. On Android (Capacitor) it reads your gallery and MyAlbums folder directly.'; b.classList.remove('hidden'); }
+    switchTab('photos');
+}
+document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden' && state.vault) exitVault(); });
+
+/* ================= VIEWER (zoom, pan, swipe) ================= */
+const V = { id: null, s: 1, fit: 1, tx: 0, ty: 0, nw: 0, nh: 0 };
+const vImg = $('viewerImg'), vStage = $('vStage');
+function applyV() { vImg.style.transform = 'translate(' + V.tx + 'px,' + V.ty + 'px) scale(' + V.s + ')'; }
+function fitV() {
+    const sw = vStage.clientWidth, sh = vStage.clientHeight; V.nw = vImg.naturalWidth || 1; V.nh = vImg.naturalHeight || 1;
+    V.fit = Math.min(sw / V.nw, sh / V.nh); V.s = V.fit; V.tx = (sw - V.nw * V.s) / 2; V.ty = (sh - V.nh * V.s) / 2;
+    vImg.style.width = V.nw + 'px'; vImg.style.height = V.nh + 'px'; applyV();
+}
+function clampV() {
+    const sw = vStage.clientWidth, sh = vStage.clientHeight, w = V.nw * V.s, h = V.nh * V.s;
+    V.tx = w <= sw ? (sw - w) / 2 : Math.min(0, Math.max(sw - w, V.tx));
+    V.ty = h <= sh ? (sh - h) / 2 : Math.min(0, Math.max(sh - h, V.ty));
+}
+function zoomAt(cx, cy, ns) {
+    ns = Math.max(V.fit * 0.95, Math.min(V.fit * 12, ns)); const k = ns / V.s;
+    V.tx = cx - (cx - V.tx) * k; V.ty = cy - (cy - V.ty) * k; V.s = ns; clampV(); applyV();
+}
+vImg.addEventListener('load', () => { fitV(); vImg.style.opacity = 1; });
+vImg.addEventListener('error', () => showToast('Could not display this photo'));
+window.addEventListener('resize', () => { if (!$('viewer').classList.contains('hidden')) fitV(); });
+
+async function openViewer(id) {
+    const it = byId(id); if (!it) return;
+    V.id = id; $('viewer').classList.remove('hidden'); document.body.style.overflow = 'hidden';
+    $('vName').textContent = it.name; $('vMeta').textContent = it.album + ' · ' + fmtDate(it.mtime) + (it.size ? ' · ' + fmtSize(it.size) : '');
+    $('vHideTxt').textContent = state.vault ? 'Unhide' : 'Hide';
+    vImg.style.opacity = 0;
+    try { vImg.src = state.vault ? await vaultUrl(it) : it.src; vImg.style.opacity = 1; } catch (e) { showToast('Could not open photo'); }
+    const i = state.order.indexOf(id); $('vPrev').style.visibility = i > 0 ? 'visible' : 'hidden'; $('vNext').style.visibility = i < state.order.length - 1 ? 'visible' : 'hidden';
+}
+function closeViewer() { $('viewer').classList.add('hidden'); document.body.style.overflow = ''; V.id = null; vImg.removeAttribute('src'); }
+function stepViewer(d) { const i = state.order.indexOf(V.id) + d; if (i >= 0 && i < state.order.length) openViewer(state.order[i]); }
+$('vClose').addEventListener('click', closeViewer);
+$('vPrev').addEventListener('click', () => stepViewer(-1)); $('vNext').addEventListener('click', () => stepViewer(1));
+document.addEventListener('keydown', e => {
+    if ($('viewer').classList.contains('hidden') || !$('editor').classList.contains('hidden')) return;
+    if (e.key === 'Escape') closeViewer(); else if (e.key === 'ArrowLeft') stepViewer(-1); else if (e.key === 'ArrowRight') stepViewer(1);
+});
+vStage.addEventListener('wheel', e => { e.preventDefault(); const r = vStage.getBoundingClientRect(); zoomAt(e.clientX - r.left, e.clientY - r.top, V.s * (e.deltaY < 0 ? 1.15 : 1 / 1.15)); }, { passive: false });
+(function viewerGestures() {
+    const ptrs = new Map(); let startDist = 0, startS = 1, panX = 0, panY = 0, swipeX = 0, lastTap = 0, moved = 0;
+    vStage.addEventListener('pointerdown', e => {
+        if (e.target.closest('button')) return; vStage.setPointerCapture(e.pointerId); ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY }); moved = 0;
+        if (ptrs.size === 2) { const [a, b] = [...ptrs.values()]; startDist = Math.hypot(a.x - b.x, a.y - b.y); startS = V.s; }
+        panX = e.clientX; panY = e.clientY; swipeX = e.clientX;
+    });
+    vStage.addEventListener('pointermove', e => {
+        if (!ptrs.has(e.pointerId)) return; ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
+        const r = vStage.getBoundingClientRect();
+        if (ptrs.size === 2) {
+            const [a, b] = [...ptrs.values()]; const d = Math.hypot(a.x - b.x, a.y - b.y);
+            zoomAt((a.x + b.x) / 2 - r.left, (a.y + b.y) / 2 - r.top, startS * d / startDist); moved = 99; return;
+        }
+        moved += Math.abs(e.clientX - panX) + Math.abs(e.clientY - panY);
+        if (V.s > V.fit * 1.02) { V.tx += e.clientX - panX; V.ty += e.clientY - panY; clampV(); applyV(); }
+        panX = e.clientX; panY = e.clientY;
+    });
+    const up = e => {
+        if (!ptrs.has(e.pointerId)) return; const was = ptrs.size; ptrs.delete(e.pointerId);
+        if (was === 1 && V.s <= V.fit * 1.02) {
+            const dx = e.clientX - swipeX; if (Math.abs(dx) > 70 && moved > 40) { stepViewer(dx < 0 ? 1 : -1); return; }
+        }
+        if (was === 1 && moved < 8) {
+            const now = Date.now();
+            if (now - lastTap < 300) { const r = vStage.getBoundingClientRect(); V.s > V.fit * 1.05 ? (V.s = V.fit, fitV()) : zoomAt(e.clientX - r.left, e.clientY - r.top, V.fit * 3); lastTap = 0; } else lastTap = now;
+        }
+    };
+    vStage.addEventListener('pointerup', up); vStage.addEventListener('pointercancel', up);
+})();
+function afterViewerChange() {
+    const i = state.order.indexOf(V.id); renderAll();
+    const next = state.order[Math.min(i, state.order.length - 1)];
+    // order is rebuilt by renderAll; show neighbour or close
+    if (state.order.length && V.id && !byId(V.id)) openViewer(state.order[Math.min(Math.max(i, 0), state.order.length - 1)]); else if (!state.order.length) closeViewer(); else openViewer(V.id);
+}
+$('vDelete').addEventListener('click', async () => {
+    const it = byId(V.id); if (!it) return;
+    const i = state.order.indexOf(V.id);
+    if (!await askConfirm('Delete this photo?', it.name, 'Delete')) return;
+    await deleteItems([it]); renderAll();
+    if (!state.order.length) closeViewer(); else openViewer(state.order[Math.min(i, state.order.length - 1)]);
+});
+$('vHide').addEventListener('click', async () => {
+    const it = byId(V.id); if (!it) return; const i = state.order.indexOf(V.id);
+    const n = state.vault ? await unhideItems([it]) : await hideItems([it]); if (!n) return; renderAll();
+    if (!state.order.length) closeViewer(); else openViewer(state.order[Math.min(i, state.order.length - 1)]);
+});
+$('vMove').addEventListener('click', async () => {
+    const it = byId(V.id); if (!it) return; if (state.vault) return showToast('Unhide first to move');
+    const i = state.order.indexOf(V.id); const d = await pickAlbum('Move to album'); if (!d) return;
+    await moveItems([it], d); renderAll();
+    if (state.album !== null && !byId(V.id)) { if (!state.order.length) closeViewer(); else openViewer(state.order[Math.min(i, state.order.length - 1)]); } else openViewer(V.id);
+});
+$('vRename').addEventListener('click', async () => { const it = byId(V.id); if (it && await renameItem(it)) { renderAll(); openViewer(it.id); } });
+$('vShare').addEventListener('click', () => { const it = byId(V.id); if (it) shareItems([it]); });
+
+/* ================= EDITOR ================= */
+const E = { img: null, rot: 0, flip: false, crop: false, bri: 100, con: 100, sat: 100, item: null };
+function drawEdit(canvas, maxDim) {
+    const img = E.img; if (!img) return; const iw = img.naturalWidth, ih = img.naturalHeight;
+    let sx = 0, sy = 0, sw = iw, sh = ih;
+    if (E.crop) { const m = Math.min(iw, ih); sx = (iw - m) / 2; sy = (ih - m) / 2; sw = sh = m; }
+    const odd = E.rot % 2 === 1; let ow = odd ? sh : sw, oh = odd ? sw : sh;
+    let k = maxDim ? Math.min(1, maxDim / Math.max(ow, oh)) : 1; ow = Math.round(ow * k); oh = Math.round(oh * k);
+    canvas.width = ow; canvas.height = oh; const c = canvas.getContext('2d');
+    c.filter = 'brightness(' + E.bri + '%) contrast(' + E.con + '%) saturate(' + E.sat + '%)';
+    c.save(); c.translate(ow / 2, oh / 2); c.rotate(E.rot * Math.PI / 2); if (E.flip) c.scale(-1, 1);
+    const dw = (odd ? oh : ow), dh = (odd ? ow : oh); c.drawImage(img, sx, sy, sw, sh, -dw / 2, -dh / 2, dw, dh); c.restore();
+}
+const redrawEdit = () => drawEdit($('editCanvas'), 1600);
+async function openEditor() {
+    const it = byId(V.id); if (!it) return; E.item = it; Object.assign(E, { rot: 0, flip: false, crop: false, bri: 100, con: 100, sat: 100 });
+    ['eBri', 'eCon', 'eSat'].forEach(id => $(id).value = 100);
+    const url = state.vault ? await vaultUrl(it) : it.src; const im = new Image(); im.crossOrigin = 'anonymous';
+    im.onload = () => { E.img = im; $('editor').classList.remove('hidden'); redrawEdit(); }; im.onerror = () => showToast('Cannot edit this photo'); im.src = url;
+}
+$('vEdit').addEventListener('click', openEditor);
+$('eCancel').addEventListener('click', () => $('editor').classList.add('hidden'));
+$('eRotL').onclick = () => { E.rot = (E.rot + 3) % 4; redrawEdit(); }; $('eRotR').onclick = () => { E.rot = (E.rot + 1) % 4; redrawEdit(); };
+$('eFlip').onclick = () => { E.flip = !E.flip; redrawEdit(); }; $('eCrop').onclick = () => { E.crop = !E.crop; redrawEdit(); };
+$('eReset').onclick = () => { Object.assign(E, { rot: 0, flip: false, crop: false, bri: 100, con: 100, sat: 100 }); ['eBri', 'eCon', 'eSat'].forEach(id => $(id).value = 100); redrawEdit(); };
+$('eBri').oninput = e => { E.bri = +e.target.value; redrawEdit(); }; $('eCon').oninput = e => { E.con = +e.target.value; redrawEdit(); }; $('eSat').oninput = e => { E.sat = +e.target.value; redrawEdit(); };
+$('eSave').addEventListener('click', async () => {
+    const it = E.item; const mode = state.vault ? 'replace' : await askChoice('Save edit', [{ label: 'Save as a copy', icon: 'fa-copy', value: 'copy' }, { label: 'Replace original', icon: 'fa-floppy-disk', value: 'replace' }]);
+    if (!mode) return;
+    const cv = document.createElement('canvas'); drawEdit(cv, 0); const png = /\.png$/i.test(it.name);
+    const blob = await new Promise(r => cv.toBlob(r, png ? 'image/png' : 'image/jpeg', 0.93)); const u8 = new Uint8Array(await blob.arrayBuffer());
+    try {
+        if (state.vault) {
+            await vstore.put(it.id + '.enc', await aesEnc(masterKey, u8)); if (it.src) URL.revokeObjectURL(it.src); it.src = null; it.size = u8.length; await vaultSaveIndex();
+        } else {
+            const [b, ext] = splitName(it.name); const nm = mode === 'copy' ? uniqueName(it.dir, b + '_edited' + (png ? '.png' : '.jpg')) : (png ? it.name : b + '.jpg');
+            const rel = joinPath(it.dir, nm); const now = Date.now();
+            if (isNative()) { await fsWrite(rel, b64.from(u8)); }
+            const target = mode === 'replace' ? it : { id: 'e' + hashStr(rel + now), dir: it.dir, album: it.album };
+            Object.assign(target, { name: nm, rel, mtime: mode === 'replace' ? it.mtime : now, size: u8.length });
+            if (isNative()) target.src = srcFor(rel) + '?v=' + now; else { target.file = new File([u8], nm, { type: blob.type }); target.src = URL.createObjectURL(target.file); }
+            if (mode === 'copy') state.items.push(target);
+            if (mode === 'replace' && isNative() && nm !== it.name) { try { await fsDelete(joinPath(it.dir, it.name)); } catch (e) {} }
+        }
+        $('editor').classList.add('hidden'); renderAll(); openViewer(it.id); showToast('Saved');
+    } catch (e) { showToast('Save failed'); }
+});
+
+/* ================= SHARE (with optional metadata removal) ================= */
+function jpegOrientation(u) {
+    if (u[0] !== 0xFF || u[1] !== 0xD8) return 1; let p = 2;
+    while (p + 4 < u.length) {
+        if (u[p] !== 0xFF) break; const m = u[p + 1], len = (u[p + 2] << 8) | u[p + 3];
+        if (m === 0xE1 && u[p + 4] === 0x45 && u[p + 5] === 0x78) {
+            const t = p + 10, le = u[t] === 0x49; const r16 = o => le ? u[t + o] | (u[t + o + 1] << 8) : (u[t + o] << 8) | u[t + o + 1];
+            const r32 = o => le ? (u[t + o] | (u[t + o + 1] << 8) | (u[t + o + 2] << 16) | (u[t + o + 3] << 24)) >>> 0 : ((u[t + o] << 24) | (u[t + o + 1] << 16) | (u[t + o + 2] << 8) | u[t + o + 3]) >>> 0;
+            const ifd = r32(4), n = r16(ifd); for (let i = 0; i < n; i++) { const e = ifd + 2 + i * 12; if (r16(e) === 0x0112) return r16(e + 8); } return 1;
+        }
+        if (m === 0xDA) break; p += 2 + len;
+    } return 1;
+}
+function stripJpeg(u) {
+    const out = [u.subarray(0, 2)]; let p = 2;
+    while (p + 4 < u.length) {
+        if (u[p] !== 0xFF) break; const m = u[p + 1], len = (u[p + 2] << 8) | u[p + 3];
+        if (m === 0xDA) { out.push(u.subarray(p)); p = u.length; break; }
+        if (m !== 0xE1 && m !== 0xED && m !== 0xFE) out.push(u.subarray(p, p + 2 + len)); p += 2 + len;
+    }
+    return concatU8(out);
+}
+function stripPng(u) {
+    const out = [u.subarray(0, 8)]; let p = 8; const drop = new Set(['eXIf', 'tEXt', 'iTXt', 'zTXt', 'tIME']);
+    while (p + 12 <= u.length) {
+        const len = ((u[p] << 24) | (u[p + 1] << 16) | (u[p + 2] << 8) | u[p + 3]) >>> 0; const type = String.fromCharCode(u[p + 4], u[p + 5], u[p + 6], u[p + 7]);
+        if (!drop.has(type)) out.push(u.subarray(p, p + 12 + len)); p += 12 + len;
+    }
+    return concatU8(out);
+}
+function concatU8(parts) { const n = parts.reduce((a, b) => a + b.length, 0); const o = new Uint8Array(n); let p = 0; parts.forEach(x => { o.set(x, p); p += x.length; }); return o; }
+async function reencode(u8, mime) {
+    const bmp = await createImageBitmap(new Blob([u8], { type: mime }), { imageOrientation: 'from-image' });
+    const cv = document.createElement('canvas'); cv.width = bmp.width; cv.height = bmp.height; cv.getContext('2d').drawImage(bmp, 0, 0);
+    const outMime = mime === 'image/jpeg' ? 'image/jpeg' : 'image/png';
+    const b = await new Promise(r => cv.toBlob(r, outMime, 0.95)); return { u8: new Uint8Array(await b.arrayBuffer()), mime: outMime };
+}
+async function stripMeta(u8, name) {
+    const mime = mimeOf(name);
+    try {
+        if (mime === 'image/jpeg') { return jpegOrientation(u8) <= 1 ? { u8: stripJpeg(u8), mime } : await reencode(u8, mime); }
+        if (mime === 'image/png') return { u8: stripPng(u8), mime };
+        if (mime === 'image/gif') return { u8, mime };
+        return await reencode(u8, mime);
+    } catch (e) { return { u8, mime }; }
+}
+async function shareItems(list) {
+    if (!list.length) return;
+    let strip = settings.meta === 'always';
+    if (settings.meta === 'ask') {
+        const v = await askChoice('Remove metadata before sharing?', [
+            { label: 'Yes, remove location & camera info', icon: 'fa-eraser', value: 'yes' }, { label: 'No, share as is', icon: 'fa-share', value: 'no' }]);
+        if (v === undefined) return; strip = v === 'yes';
+    }
+    showToast('Preparing ' + list.length + ' file(s)…');
+    const files = [];
+    try {
+        for (const it of list) {
+            let u8 = await itemBytes(it); let mime = mimeOf(it.name), name = it.name;
+            if (strip) { const r = await stripMeta(u8, it.name); u8 = r.u8; if (r.mime !== mime) { mime = r.mime; name = splitName(name)[0] + (mime === 'image/png' ? '.png' : '.jpg'); } }
+            files.push({ name, mime, u8 });
+        }
+    } catch (e) { return showToast('Could not read file'); }
+    if (isNative()) {
+        try {
+            const uris = [];
+            for (const f of files) { const r = await nativeCall('Filesystem', 'writeFile', { path: 'share/' + f.name, data: b64.from(f.u8), directory: 'CACHE', recursive: true }); uris.push(r.uri); }
+            await nativeCall('Share', 'share', { title: 'Evergreen Gallery', files: uris, dialogTitle: 'Share' });
+        } catch (e) { if (!/cancel/i.test(String(e && e.message))) showToast('Share failed'); }
+        return;
+    }
+    const wf = files.map(f => new File([f.u8], f.name, { type: f.mime }));
+    try { if (navigator.canShare && navigator.canShare({ files: wf })) { await navigator.share({ files: wf }); return; } } catch (e) { if (e && e.name === 'AbortError') return; }
+    wf.forEach(f => { const a = document.createElement('a'); a.href = URL.createObjectURL(f); a.download = f.name; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 4000); });
+    showToast('Saved to downloads');
+}
+$('selShare').addEventListener('click', () => { const l = selItems(); shareItems(l); });
+async function deleteAlbum(dir) {
+    if (!dir || state.vault) return;
+    if (curItems().some(i => i.dir === dir)) return showToast('Album is not empty. Move or delete its photos first.');
+    if (!await askConfirm('Delete album?', baseOf(dir) + ' is empty and will be removed.', 'Delete')) return;
+    try {
+        if (isNative()) {
+            let left = []; try { left = (await fsList(dir)).filter(f => !f.name.startsWith('.')); } catch (e) {}
+            if (left.length) return showToast('Album still contains ' + left.length + ' other file(s)');
+            await fsRmdir(dir);
+        }
+    } catch (e) { return showToast('Delete failed: ' + errMsg(e) + PERM_HINT); }
+    state.dirs.delete(dir); state.extraDirs.delete(dir);
+    try { localStorage.setItem('gg_extra_dirs', JSON.stringify([...state.extraDirs])); } catch (e) {}
+    state.album = null; showToast('Album deleted'); switchTab('albums');
+}
+(function albumShareUI() {
+    const crumb = $('albumCrumb'); const b = document.createElement('button');
+    b.id = 'btnShareAlbum'; b.className = 'text-xs font-semibold accent-text flex items-center gap-1'; b.innerHTML = '<i class="fa-solid fa-share-nodes"></i> Share album';
+    crumb.insertBefore(b, $('crumbCount')); b.addEventListener('click', () => shareItems(visibleItems()));
+    const d = document.createElement('button'); d.id = 'btnDelAlbum'; d.className = 'hidden text-xs font-semibold text-red-400 flex items-center gap-1'; d.innerHTML = '<i class="fa-solid fa-trash-can"></i> Delete album';
+    crumb.insertBefore(d, $('crumbCount')); d.addEventListener('click', () => deleteAlbum(state.album));
+    // long press / right click an album card for a quick menu
+    let t = null, fired = false;
+    const menu = async card => {
+        const dir = card.dataset.dir; const v = await askChoice(baseOf(dir), [{ label: 'Open album', icon: 'fa-folder-open', value: 'open' }, { label: 'Share album', icon: 'fa-share-nodes', value: 'share' }, { label: 'Delete album (empty only)', icon: 'fa-trash-can', value: 'delete' }]);
+        if (v === 'open') card.click(); else if (v === 'share') shareItems(curItems().filter(i => i.dir === dir)); else if (v === 'delete') deleteAlbum(dir);
+    };
+    const g = $('albumGrid');
+    g.addEventListener('touchstart', e => { const c = e.target.closest('.album-card'); if (!c) return; fired = false; t = setTimeout(() => { fired = true; menu(c); }, 550); }, { passive: true });
+    ['touchend', 'touchmove', 'touchcancel'].forEach(ev => g.addEventListener(ev, () => clearTimeout(t), { passive: true }));
+    g.addEventListener('contextmenu', e => { const c = e.target.closest('.album-card'); if (c) { e.preventDefault(); menu(c); } });
+    g.addEventListener('click', e => { if (fired) { e.stopImmediatePropagation(); fired = false; } }, true);
+})();
+
+/* ================= DUPLICATE FINDER (skip / delete / move) ================= */
+let dupeGroups = []; const skipped = new Set(safeParse(localStorage.getItem('gg_skip'), []));
+async function sha(it) { const u8 = await itemBytes(it); const h = new Uint8Array(await crypto.subtle.digest('SHA-256', u8)); return Array.from(h.slice(0, 16), x => x.toString(16).padStart(2, '0')).join(''); }
+$('btnScanDupes').addEventListener('click', async () => {
+    if (state.vault) return showToast('Exit the vault to scan the main gallery');
+    const bySize = new Map(); state.items.forEach(i => { if (i.size) { if (!bySize.has(i.size)) bySize.set(i.size, []); bySize.get(i.size).push(i); } });
+    const cands = [...bySize.values()].filter(g => g.length > 1); const total = cands.reduce((a, g) => a + g.length, 0);
+    if (!total) { dupeGroups = []; renderDupes(); return showToast('No duplicates found'); }
+    let done = 0; const groups = [];
+    for (const g of cands) {
+        const byHash = new Map();
+        for (const it of g) { try { const h = await sha(it); if (!byHash.has(h)) byHash.set(h, []); byHash.get(h).push(it); } catch (e) {} done++; $('dupeInfo').textContent = 'Scanning ' + done + ' / ' + total + '…'; }
+        byHash.forEach((list, h) => { if (list.length > 1) { list.sort((a, b) => a.mtime - b.mtime); groups.push({ hash: h, list, keep: list[0].id }); } });
+    }
+    dupeGroups = groups; renderDupes();
+});
+function renderDupes() {
+    const vis = dupeGroups.filter(g => !skipped.has(g.hash) && g.list.filter(i => state.items.includes(i)).length > 1);
+    $('dupeInfo').textContent = vis.length ? vis.length + ' duplicate group(s). Tap a photo to choose which one to keep.' : 'No duplicates to review';
+    $('dupeList').innerHTML = vis.map((g, gi) => '<div class="panel-bg rounded-2xl border border-zinc-800 p-3 space-y-2" data-hash="' + g.hash + '"><div class="flex gap-2 overflow-x-auto no-scrollbar">' +
+        g.list.map(it => '<button class="dupe-pick flex-none w-28 text-left" data-id="' + it.id + '"><div class="thumb ' + (g.keep === it.id ? 'sel' : '') + '"><img alt="" src="' + it.src + '">' + (g.keep === it.id ? '<span class="vid-badge accent-bg">KEEP</span>' : '') + '</div><p class="text-[10px] text-zinc-300 truncate mt-1">' + esc(it.name) + '</p><p class="text-[10px] text-zinc-500 truncate">' + esc(it.album) + ' · ' + fmtSize(it.size) + '</p></button>').join('') +
+        '</div><div class="flex gap-2 justify-end text-xs font-semibold"><button class="d-skip px-3 py-2 rounded-lg bg-zinc-800 text-zinc-200">Skip</button><button class="d-move px-3 py-2 rounded-lg bg-zinc-800 text-zinc-200">Move others</button><button class="d-del px-3 py-2 rounded-lg bg-red-600 text-white">Delete others</button></div></div>').join('');
+}
+$('dupeList').addEventListener('click', async e => {
+    const card = e.target.closest('[data-hash]'); if (!card) return; const g = dupeGroups.find(x => x.hash === card.dataset.hash); if (!g) return;
+    const pick = e.target.closest('.dupe-pick'); if (pick) { g.keep = pick.dataset.id; return renderDupes(); }
+    const others = g.list.filter(i => i.id !== g.keep && state.items.includes(i));
+    if (e.target.closest('.d-skip')) { skipped.add(g.hash); try { localStorage.setItem('gg_skip', JSON.stringify([...skipped])); } catch (x) {} return renderDupes(); }
+    if (e.target.closest('.d-del')) { if (!await askConfirm('Delete ' + others.length + ' duplicate(s)?', 'The copy marked KEEP stays.', 'Delete')) return; await deleteItems(others); renderDupes(); }
+    if (e.target.closest('.d-move')) { const d = await pickAlbum('Move duplicates to'); if (!d) return; await moveItems(others, d); renderDupes(); }
+});
+
+/* ================= SETTINGS & INIT ================= */
+$('btnSettings').addEventListener('click', () => { $('setMeta').value = settings.meta; $('setAlbumRoot').value = settings.albumRoot; openModal('settingsModal'); });
+$('setMeta').addEventListener('change', e => { settings.meta = e.target.value; saveSettings(); });
+$('setAlbumRoot').addEventListener('change', e => { settings.albumRoot = e.target.value.trim().replace(/^\/+|\/+$/g, '') || 'MyAlbums'; saveSettings(); if (!state.vault) loadLibrary(false); });
+$('settingsModal').addEventListener('click', e => { if (e.target === $('settingsModal')) closeModal('settingsModal'); });
+$('pickModal').addEventListener('click', e => { if (e.target === $('pickModal')) document.querySelector('.closePick').click(); });
+
+function handleBack() {
+    for (const id of ['confirmModal', 'inputModal', 'pinModal']) if (!$(id).classList.contains('hidden')) return true;
+    if (!$('pickModal').classList.contains('hidden')) { document.querySelector('.closePick').click(); return true; }
+    if (!$('settingsModal').classList.contains('hidden')) { closeModal('settingsModal'); return true; }
+    if (!$('editor').classList.contains('hidden')) { $('editor').classList.add('hidden'); return true; }
+    if (!$('viewer').classList.contains('hidden')) { closeViewer(); return true; }
+    if (state.selecting) { clearSelection(); return true; }
+    if (state.album !== null) { state.album = null; switchTab('albums'); return true; }
+    if (state.tab !== 'photos') { switchTab('photos'); return true; }
+    return false;
+}
+window.addEventListener('DOMContentLoaded', () => {
+    setAppTheme(localStorage.getItem('gg_theme') || 'black'); applyAccent(); switchTab('photos');
+    try { const cap = window.Capacitor; const app = cap && cap.Plugins && cap.Plugins.App; if (app && app.addListener) app.addListener('backButton', () => { if (!handleBack()) app.exitApp(); }); } catch (e) {}
+    loadLibrary(true);
+});
+if ('serviceWorker' in navigator && !isNative()) window.addEventListener('load', () => navigator.serviceWorker.register('sw.js').catch(() => {}));
+</script>
+</body>
+</html>
